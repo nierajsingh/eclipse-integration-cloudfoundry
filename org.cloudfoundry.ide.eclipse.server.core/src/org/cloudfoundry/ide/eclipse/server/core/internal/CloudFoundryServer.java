@@ -3,7 +3,7 @@
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Apache License, 
- * Version 2.0 (the "LicenseÓ); you may not use this file except in compliance 
+ * Version 2.0 (the "Licenseï¿½); you may not use this file except in compliance 
  * with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -53,6 +53,7 @@ import org.eclipse.wst.server.core.IModule;
 import org.eclipse.wst.server.core.IModuleType;
 import org.eclipse.wst.server.core.IServer;
 import org.eclipse.wst.server.core.IServerWorkingCopy;
+import org.eclipse.wst.server.core.internal.IModuleVisitor;
 import org.eclipse.wst.server.core.internal.Server;
 import org.eclipse.wst.server.core.internal.ServerPlugin;
 import org.eclipse.wst.server.core.model.IURLProvider;
@@ -798,6 +799,24 @@ public class CloudFoundryServer extends ServerDelegate implements IURLProvider {
 			deleteServicesOnModuleRemove.set(Boolean.FALSE);
 			wc.modifyModules(null, deletedModules.toArray(new IModule[deletedModules.size()]), null);
 			wc.save(true, null);
+			
+			// Note: This is normally performed as part of a server publish operation in WST, but to avoid doing a 
+			// a full server publish, yet complete a proper module deletion and cache clearing, it is performed here.
+			final List<IModule[]> modules2 = new ArrayList<IModule[]>();
+			final Server server = (Server) getServer();
+			server.visit(new IModuleVisitor() {
+				public boolean visit(IModule[] module) {
+					if (getServer().getModulePublishState(module) == IServer.PUBLISH_STATE_NONE)
+						server.getServerPublishInfo().fill(module);
+					
+					modules2.add(module);
+					return true;
+				}
+			}, null);
+			
+			server.getServerPublishInfo().removeDeletedModulePublishInfo(server, modules2);
+			server.getServerPublishInfo().clearCache();
+			server.getServerPublishInfo().save();
 		}
 		catch (CoreException e) {
 			// log error to avoid pop-up dialog

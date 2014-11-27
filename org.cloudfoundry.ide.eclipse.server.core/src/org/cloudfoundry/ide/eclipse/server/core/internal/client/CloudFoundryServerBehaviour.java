@@ -1413,19 +1413,10 @@ public class CloudFoundryServerBehaviour extends ServerBehaviourDelegate {
 			// documentation
 			// (and the name of the parameter) indicates that it is always one
 			// module
+			ICloudFoundryOperation op = null;
 			if (deltaKind == REMOVED) {
-				final CloudFoundryServer cloudServer = getCloudFoundryServer();
-				final CloudFoundryApplicationModule cloudModule = cloudServer.getCloudModule(module[0]);
-				if (cloudModule.getApplication() != null) {
-					new BehaviourRequest<Void>(NLS.bind(Messages.DELETING_MODULE,
-							cloudModule.getDeployedApplicationName())) {
-						@Override
-						protected Void doRun(CloudFoundryOperations client, SubMonitor progress) throws CoreException {
-							client.deleteApplication(cloudModule.getDeployedApplicationName());
-							return null;
-						}
-					}.run(monitor);
-				}
+
+				op = new DeleteModulesOperation(this, module, true, this);
 
 			}
 			else if (!module[0].isExternal()) {
@@ -1437,7 +1428,7 @@ public class CloudFoundryServerBehaviour extends ServerBehaviourDelegate {
 				// applications that
 				// should not be restarted.
 				int publishState = getServer().getModulePublishState(module);
-				ICloudFoundryOperation op = null;
+
 				if (deltaKind == ServerBehaviourDelegate.ADDED || publishState == IServer.PUBLISH_STATE_UNKNOWN) {
 					// Application has not been published, so do a full
 					// publish
@@ -1451,17 +1442,17 @@ public class CloudFoundryServerBehaviour extends ServerBehaviourDelegate {
 				else if (isChildModuleChanged(module, monitor)) {
 					op = getApplicationOperation(module, ApplicationAction.UPDATE_RESTART);
 				}
+			}
 
-				// NOTE: No need to run this as a separate Job, as publish
-				// operations
-				// are already run in a PublishJob. To better integrate with
-				// WST, ensure publish operation
-				// is run to completion in the PublishJob, unless launching
-				// asynch events to notify other components while the main
-				// publish operation is being run (e.g refresh UI, etc..).
-				if (op != null) {
-					op.run(monitor);
-				}
+			// NOTE: No need to run this as a separate Job, as publish
+			// operations
+			// are already run in a PublishJob. To better integrate with
+			// WST, ensure publish operation
+			// is run to completion in the PublishJob, unless launching
+			// asynch events to notify other components while the main
+			// publish operation is being run (e.g refresh UI, etc..).
+			if (op != null) {
+				op.run(monitor);
 			}
 		}
 		catch (CoreException e) {
