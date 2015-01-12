@@ -7,11 +7,9 @@
   
 ## Builds With Work In Progress
 
-The following zip files contain installation sites with CF Eclipse builds that contain work in progress
-that have not been merged upstream to the CF Eclipse repo:
+Builds with work in progress are listed here:
 
-### CF 1.8.0 Debug Support
-[Build 20150112](localinstalls/cfeclipse180debug_20150112.zip)
+[Work in progress](localinstalls/README.md)
 
 ## Installation (Release)
 
