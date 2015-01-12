@@ -7,7 +7,7 @@ The following zip files contain installation sites with CF Eclipse builds that c
 that have not been merged upstream to the CF Eclipse repo:
 
 ### CF 1.8.0 Debug Support
-[v1 - 20150112 - Initial Implementation](localinstalls/cfeclipse180debug_20150112.zip)
+[v1 - 20150112 - Initial Implementation](cfeclipse180debug_20150112.zip)
 
 - Debug enabled in CF Editor "Debug" button
 - Debug only works on ngrok.com. Authtoken required.
