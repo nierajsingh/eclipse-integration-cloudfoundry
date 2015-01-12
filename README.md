@@ -4,6 +4,14 @@
   PaaS: http://www.cloudfoundry.com/. It allows you to directly deploy applications from your
   workspace to a running Pivotal CF server instance, view and manage deployed applications and services,
   start and stop applications.
+  
+## Builds With Work In Progress
+
+The following zip files contain installation sites with CF Eclipse builds that contain work in progress
+that have not been merged upstream to the CF Eclipse repo:
+
+### CF 1.8.0 Debug Support
+[Build 20150112](localinstalls/cfeclipse180debug_20150112.zip)
 
 ## Installation (Release)
 
