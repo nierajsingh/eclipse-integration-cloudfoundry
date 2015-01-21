@@ -21,7 +21,7 @@ Currently, debugging an application in Pivotal Web Services (PWS) through CF Ecl
 
 Ngrok.com is used to establish a tunnel between the app running in the Cloud space and ngrok.com. In order to establish
 this tunnel, the ngrok executable needs to be included in the application as well as a shell script to
-run ngrok remote in the Cloud space. Both need to be included as part of the application when pushing it to the Cloud space.
+run ngrok remotely in the Cloud space. Both need to be included as part of the application when pushing it to the Cloud space.
 
 A prerequisite to debug on the Cloud space using ngrok.com is to have an ngrok.com account and authtoken provided by ngrok.com when you register. 
 
