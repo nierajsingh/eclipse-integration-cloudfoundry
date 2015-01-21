@@ -27,15 +27,9 @@ A prerequisite to debug on the Cloud space using ngrok.com is to have an ngrok.c
 
 1. In your application's project in Eclipse, create a ".profile.d" folder in src/main/resources and make sure src/main/resources is in the project's classpath, if it isn't already.
 
-2. In ".profile.d", add a Linux ngrok executable, which can be downloaded from here:
+2. In ".profile.d", add a Linux ngrok executable, which can be downloaded from here: [ngrok](https://ngrok.com/download)
 
-https://ngrok.com/download
-
-3. Add a ngrok.sh in ".profile.d" file with the following content:
-
-[ngrok.sh](ngrok.sh)
-
-By default, CF Eclipse uses port 4000. This can be changed manually (see below).
+3. Add a ngrok.sh in ".profile.d" file with the following content: [ngrok.sh](ngrok.sh)
 
 4. Push the application to your Cloud space using drag/drop or WTP Run on Server
 
