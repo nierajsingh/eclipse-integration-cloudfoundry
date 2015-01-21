@@ -33,9 +33,7 @@ https://ngrok.com/download
 
 3. Add a ngrok.sh in ".profile.d" file with the following content:
 
-#!/bin/sh
-
-/app/.profile.d/ngrok -proto=tcp -authtoken [your-ngrok-authtoken-here] -log=stdout 4000 > /app/.profile.d/ngrok.txt &
+[ngrok.sh](ngrok.sh)
 
 By default, CF Eclipse uses port 4000. This can be changed manually (see below).
 
