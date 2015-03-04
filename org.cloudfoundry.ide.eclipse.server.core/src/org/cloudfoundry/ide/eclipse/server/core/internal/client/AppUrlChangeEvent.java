@@ -19,30 +19,37 @@
  ********************************************************************************/
 package org.cloudfoundry.ide.eclipse.server.core.internal.client;
 
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IProgressMonitor;
+import java.util.List;
+
+import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryServer;
+import org.cloudfoundry.ide.eclipse.server.core.internal.application.ModuleChangeEvent;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.wst.server.core.IModule;
 
-/**
- * Performs a {@link BaseClientRequest} that updates an existing published
- * application. After the request is performed it will fire an event indicating
- * that the published application has been updated (e.g. memory scaled, mapped
- * URL changed, etc.)
- *
- */
-public class ApplicationUpdateOperation extends BehaviourOperation {
+public class AppUrlChangeEvent extends ModuleChangeEvent {
 
-	private final BaseClientRequest<?> request;
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 
-	public ApplicationUpdateOperation(BaseClientRequest<?> request, CloudFoundryServerBehaviour behaviour,
-			IModule module) {
-		super(behaviour, module);
-		this.request = request;
+	private final List<String> changedUrls;
+
+	private final List<String> oldUrls;
+
+	public AppUrlChangeEvent(CloudFoundryServer server, int type, IModule module, IStatus status, List<String> oldUrls,
+			List<String> changedUrls) {
+		super(server, type, module, status);
+		this.changedUrls = changedUrls;
+		this.oldUrls = oldUrls;
 	}
 
-	@Override
-	public void run(IProgressMonitor monitor) throws CoreException {
-		request.run(monitor);
-		getBehaviour().getRefreshHandler().schedulesRefreshApplication(getModule());
+	public List<String> getChangedUrls() {
+		return changedUrls;
 	}
+
+	public List<String> getOldUrls() {
+		return oldUrls;
+	}
+
 }
