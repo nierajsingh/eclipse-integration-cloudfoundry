@@ -1,9 +1,9 @@
 /*******************************************************************************
- * Copyright (c) 2014 Pivotal Software, Inc. 
+ * Copyright (c) 2014, 2015 Pivotal Software, Inc. 
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Apache License, 
- * Version 2.0 (the "License�); you may not use this file except in compliance 
+ * Version 2.0 (the "License"); you may not use this file except in compliance 
  * with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -28,7 +28,7 @@ public class Messages extends NLS {
 	public static String AbstractApplicationDelegate_ERROR_MISSING_DEPLOY_INFO;
 
 	public static String AbstractApplicationDelegate_ERROR_MISSING_MEM;
-	
+
 	public static String ApplicationLogConsoleManager_NO_RECENT_LOGS;
 
 	public static String ApplicationUrlLookupService_ERROR_GET_CLOUD_URL;
@@ -40,6 +40,8 @@ public class Messages extends NLS {
 	public static String ERROR_WRONG_EMAIL_OR_PASSWORD_UNAUTHORISED;
 
 	public static String ERROR_WRONG_EMAIL_OR_PASSWORD_FORBIDDEN;
+
+	public static String ERROR_ACCESS_TOKEN;
 
 	public static String ERROR_UNABLE_TO_ESTABLISH_CONNECTION_UNKNOWN_HOST;
 
@@ -97,6 +99,8 @@ public class Messages extends NLS {
 
 	public static String ERROR_NO_MAPPED_APPLICATION_URLS;
 
+	public static String ERROR_HOST_TAKEN;
+
 	public static String INVALID_CHARACTERS_ERROR;
 
 	public static String WARNING_SELF_SIGNED_PROMPT_USER;
@@ -106,6 +110,16 @@ public class Messages extends NLS {
 	public static String TunnelServiceCommandStore_ERROR_SERIALIZE_JAVAMAP;
 
 	public static String TunnelServiceCommandStore_ERROR_VALUE_CANNOT_SERILIZE;
+
+	public static String ClientRequest_RETRY_REQUEST;
+
+	public static String ClientRequest_SECOND_ATTEMPT_FAILED;
+
+	public static String ClientRequest_TOKEN_EXPIRED;
+
+	public static String ClientRequest_NO_TOKEN;
+
+	public static String CloudBehaviourOperations_REFRESHING_APPS_AND_SERVICES;
 
 	public static String CloudFoundryApplicationModule_STATE_DEPLOYABLE;
 
@@ -129,6 +143,8 @@ public class Messages extends NLS {
 
 	public static String CloudFoundryLoginHandler_LABEL_PERFORM_CF_OPERATION;
 
+	public static String CloudFoundryServer_UPDATING_MODULE;
+
 	public static String CloudFoundryServer_ERROR_APPTYPE_NOT_SUPPORTED;
 
 	public static String CloudFoundryServer_ERROR_FAIL_ON_CFAPP_CREATION;
@@ -137,21 +153,47 @@ public class Messages extends NLS {
 
 	public static String CloudFoundryServer_JOB_UPDATE;
 
+	public static String CloudFoundryServerBehaviour_APP_STATS;
+
+	public static String CloudFoundryServerBehaviour_APP_INFO;
+
+	public static String CloudFoundryServerBehaviour_CREATE_SERVICES;
+
+	public static String CloudFoundryServerBehaviour_CREATING_SERVICE;
+
+	public static String CloudFoundryServerBehaviour_DELETE_SERVICES;
+
+	public static String CloudFoundryServerBehaviour_DELETING_SERVICE;
+
+	public static String CloudFoundryServerBehaviour_DOMAINS_FOR_SPACE;
+
+	public static String CloudFoundryServerBehaviour_GET_ALL_APPS;
+
+	public static String CloudFoundryServerBehaviour_GET_ALL_SERVICES;
+
+	public static String CloudFoundryServerBehaviour_GET_APPLICATION;
+
+	public static String CloudFoundryServerBehaviour_UPDATE_APP_MEMORY;
+
+	public static String CloudFoundryServerBehaviour_UPDATE_APP_URLS;
+
+	public static String CloudFoundryServerBehaviour_UPDATE_ENV_VARS;
+
+	public static String CloudFoundryServerBehaviour_UPDATE_SERVICE_BINDING;
+
+	public static String CloudFoundryServerBehaviour_WAITING_APP_START;
+
 	public static String CommandOptions_DESCRIPTION_VARIABLES_FOR_TUNNEL;
 
 	public static String CONSOLE_ERROR_MESSAGE;
-
-	public static String CONSOLE_RESTARTING_APP;
-
-	public static String CONSOLE_DEPLOYING_APP;
 
 	public static String CONSOLE_GENERATING_ARCHIVE;
 
 	public static String CONSOLE_APP_STOPPED;
 
-	public static String CONSOLE_PRE_STAGING_MESSAGE;
+	public static String PushApplicationOperation_PUSH_MESSAGE;
 
-	public static String CONSOLE_APP_PUSH_MESSAGE;
+	public static String PushApplicationOperation_UPDATE_APP_MESSAGE;
 
 	public static String CONSOLE_APP_CREATION;
 
@@ -171,9 +213,27 @@ public class Messages extends NLS {
 
 	public static String CONSOLE_STOPPING_APPLICATION;
 
+	public static String LocalServerRequest_SERVER_LABEL;
+
+	public static String ManifestParser_READING;
+
+	public static String ManifestParser_NO_APP_NAME;
+
+	public static String ManifestParser_WRITING;
+
 	public static String REFRESHING_MODULES;
 
+	public static String RefreshModulesHandler_REFRESH_FAILURE;
+
+	public static String RefreshModulesHandler_REFRESH_JOB;
+
+	public static String RefreshModulesHandler_EVENT_CLOUD_SERVER_NULL;
+
+	public static String RestartOperation_STARTING_APP;
+
 	public static String PUBLISHING_MODULE;
+
+	public static String StopApplicationOperation_STOPPING_APP;
 
 	public static String DELETING_MODULE;
 

@@ -117,7 +117,7 @@
  	   	</menuContribution>
      	<menuContribution locationURI="popup:org.eclipse.wst.server.ui.ServersView">
      	   <command
-     	       label="Show Console"
+     	       label="Show Recent Logs"
      	       commandId="org.cloudfoundry.ide.eclipse.server.ui.internal.actions.showconsoleviewercommand">
   	         <visibleWhen
   	               checkEnabled="false">
@@ -138,6 +138,25 @@
      	   <command
      	       label="Update and Restart"
      	       commandId="org.cloudfoundry.ide.eclipse.server.ui.internal.actions.updaterestartmodulecommand">
+  	         <visibleWhen
+  	               checkEnabled="false">
+				   <with variable="activeMenuSelection">
+                     <and>
+                  	 	<iterate>
+                     	  <adapt
+                           	type="org.eclipse.wst.server.ui.internal.view.servers.ModuleServer">
+                     	  </adapt>
+                  	    </iterate>
+						<test property="org.cloudfoundry.ide.eclipse.server.ui.isServerSupported" value="true"/>
+                  	 </and>
+               	   </with>
+  	         </visibleWhen>
+   	  	   </command>
+ 	   	</menuContribution>
+ 	   	<menuContribution locationURI="popup:org.eclipse.wst.server.ui.ServersView">
+     	   <command
+     	       label="Push"
+     	       commandId="org.cloudfoundry.ide.eclipse.server.ui.internal.actions.pushcommand">
   	         <visibleWhen
   	               checkEnabled="false">
 				   <with variable="activeMenuSelection">
@@ -197,14 +216,19 @@
 		</command>
 		<!-- Commands based on modules -->
 		<command
-			name="Show Console"
-			description="Show Console"
+			name="Show Recent Logs"
+			description="Show Recent Logs"
 			id="org.cloudfoundry.ide.eclipse.server.ui.internal.actions.showconsoleviewercommand">
 		</command>
 		<command
 			name="Update and Restart"
 			description="Update and Restart"
 			id="org.cloudfoundry.ide.eclipse.server.ui.internal.actions.updaterestartmodulecommand">
+		</command>
+		<command
+			name="Push"
+			description="Push application"
+			id="org.cloudfoundry.ide.eclipse.server.ui.internal.actions.pushcommand">
 		</command>
 		<command
 			name="Open Home Page"
@@ -267,7 +291,7 @@
                	</and>    
 	        </with>  
 		</enabledWhen>
-      </handler>    
+      </handler>      
       <handler
         class="org.cloudfoundry.ide.eclipse.server.ui.internal.actions.UpdateRestartModuleCommand"
         commandId="org.cloudfoundry.ide.eclipse.server.ui.internal.actions.updaterestartmodulecommand">
@@ -278,6 +302,20 @@
                		<test property="org.cloudfoundry.ide.eclipse.server.ui.isServerStarted" value="true"/>
                		<test property="org.cloudfoundry.ide.eclipse.server.ui.isModuleProjectAccessible" value="true"/>
                		<test property="org.cloudfoundry.ide.eclipse.server.ui.isCloudModuleStarted" value="true"/>
+               		<test property="org.cloudfoundry.ide.eclipse.server.ui.isCloudModuleLocal" value="true"/>
+               	</and>    
+	        </with>  
+		</enabledWhen>
+      </handler>
+      <handler
+        class="org.cloudfoundry.ide.eclipse.server.ui.internal.actions.PushModuleCommand"
+        commandId="org.cloudfoundry.ide.eclipse.server.ui.internal.actions.pushcommand">
+ 		<enabledWhen>
+           	<with variable="selection">
+           		<count value="1" />
+           		<and>
+               		<test property="org.cloudfoundry.ide.eclipse.server.ui.isServerStarted" value="true"/>
+               		<test property="org.cloudfoundry.ide.eclipse.server.ui.isModuleProjectAccessible" value="true"/>
                		<test property="org.cloudfoundry.ide.eclipse.server.ui.isCloudModuleLocal" value="true"/>
                	</and>    
 	        </with>  

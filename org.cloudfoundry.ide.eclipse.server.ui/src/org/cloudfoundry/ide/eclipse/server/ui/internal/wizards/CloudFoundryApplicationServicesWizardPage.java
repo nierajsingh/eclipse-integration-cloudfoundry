@@ -1,9 +1,9 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2014 Pivotal Software, Inc. 
+ * Copyright (c) 2012, 2015 Pivotal Software, Inc. and IBM Corporation 
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Apache License, 
- * Version 2.0 (the "License”); you may not use this file except in compliance 
+ * Version 2.0 (the "License"); you may not use this file except in compliance 
  * with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -31,7 +31,7 @@ import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryPlugin;
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryServer;
 import org.cloudfoundry.ide.eclipse.server.core.internal.client.CloudFoundryApplicationModule;
 import org.cloudfoundry.ide.eclipse.server.core.internal.client.LocalCloudService;
-import org.cloudfoundry.ide.eclipse.server.core.internal.client.TunnelBehaviour;
+import org.cloudfoundry.ide.eclipse.server.core.internal.tunnel.TunnelBehaviour;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.CloudFoundryImages;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.ICoreRunnable;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.Messages;
@@ -194,15 +194,19 @@ public class CloudFoundryApplicationServicesWizardPage extends PartsWizardPage {
 			public void run() {
 				// Do not create the service right away.
 				boolean deferAdditionOfService = true;
+				
 				CloudFoundryServiceWizard wizard = new CloudFoundryServiceWizard(cloudServer, deferAdditionOfService);
 				WizardDialog dialog = new WizardDialog(getShell(), wizard);
+				wizard.setParent(dialog);
+				dialog.setPageSize(900, 600);
 				dialog.setBlockOnOpen(true);
+				
 				if (dialog.open() == Window.OK) {
 					// This cloud service does not yet exist. It will be created
 					// outside of the wizard
-					CloudService addedService = wizard.getService();
+					List<CloudService> addedService = wizard.getServices();
 					if (addedService != null) {
-						addService(addedService);
+						addServices(addedService);
 					}
 				}
 			}
@@ -225,16 +229,19 @@ public class CloudFoundryApplicationServicesWizardPage extends PartsWizardPage {
 	 * @param service that was added and will also be automatically selected to
 	 * be bound to the application.
 	 */
-	protected void addService(CloudService service) {
-		if (service == null) {
+	protected void addServices(List<CloudService> services) {
+		if (services == null || services.size() == 0) {
 			return;
 		}
+		
+		for(CloudService service : services) {
+			allServices.put(service.getName(), service);
 
-		allServices.put(service.getName(), service);
+			servicesToAdd.add(service.getName());
 
-		servicesToAdd.add(service.getName());
+			selectedServicesToBind.add(service.getName());			
+		}
 
-		selectedServicesToBind.add(service.getName());
 		setServicesToBindInDescriptor();
 		setServicesToCreateInDescriptor();
 		setBoundServiceSelectionInUI();

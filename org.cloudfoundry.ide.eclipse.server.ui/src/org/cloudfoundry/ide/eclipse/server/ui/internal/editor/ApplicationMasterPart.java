@@ -1,9 +1,9 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2014 Pivotal Software, Inc. 
+ * Copyright (c) 2012, 2015 Pivotal Software Inc and IBM Corporation 
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Apache License, 
- * Version 2.0 (the "License�); you may not use this file except in compliance 
+ * Version 2.0 (the "License"); you may not use this file except in compliance 
  * with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -27,12 +27,12 @@ import org.cloudfoundry.client.lib.domain.CloudService;
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryBrandingExtensionPoint;
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryServer;
 import org.cloudfoundry.ide.eclipse.server.core.internal.client.CloudFoundryApplicationModule;
-import org.cloudfoundry.ide.eclipse.server.core.internal.client.TunnelBehaviour;
 import org.cloudfoundry.ide.eclipse.server.core.internal.debug.CloudFoundryProperties;
+import org.cloudfoundry.ide.eclipse.server.core.internal.tunnel.TunnelBehaviour;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.CloudFoundryImages;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.Messages;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.DeleteServicesAction;
-import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.RefreshApplicationEditorAction;
+import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.RefreshEditorAction;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.ServiceToApplicationsBindingAction;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.wizards.CloudFoundryServiceWizard;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.wizards.CloudRoutesWizard;
@@ -57,7 +57,6 @@ import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.Viewer;
-import org.eclipse.jface.wizard.IWizard;
 import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
@@ -230,10 +229,8 @@ public class ApplicationMasterPart extends SectionPart {
 									Display.getDefault().asyncExec(new Runnable() {
 
 										public void run() {
-											MessageDialog.openError(
-													editorPage.getSite().getShell(),
-													Messages.ApplicationMasterPart_ERROR_DEPLOY_FAIL_TITLE,
-													NLS.bind(
+											MessageDialog.openError(editorPage.getSite().getShell(),
+													Messages.ApplicationMasterPart_ERROR_DEPLOY_FAIL_TITLE, NLS.bind(
 															Messages.ApplicationMasterPart_ERROR_DEPLOY_FAIL_BODY,
 															moduleName));
 										}
@@ -413,7 +410,7 @@ public class ApplicationMasterPart extends SectionPart {
 		toolBarManager.add(addRemoveApplicationAction);
 
 		// Fix for STS-2996. Moved from CloudFoundryApplicationsEditorPage
-		toolBarManager.add(new RefreshApplicationEditorAction(editorPage));
+		toolBarManager.add(RefreshEditorAction.getRefreshAction(editorPage, null));
 		toolBarManager.update(true);
 		section.setTextClient(headerComposite);
 
@@ -538,8 +535,10 @@ public class ApplicationMasterPart extends SectionPart {
 		Action addServiceAction = new Action(Messages.COMMONTXT_ADD_SERVICE, CloudFoundryImages.NEW_SERVICE) {
 			@Override
 			public void run() {
-				IWizard wizard = new CloudFoundryServiceWizard(cloudServer);
+				CloudFoundryServiceWizard wizard = new CloudFoundryServiceWizard(cloudServer);
 				WizardDialog dialog = new WizardDialog(getSection().getShell(), wizard);
+				wizard.setParent(dialog);
+				dialog.setPageSize(900, 600);
 				dialog.setBlockOnOpen(true);
 				dialog.open();
 			}
@@ -595,20 +594,12 @@ public class ApplicationMasterPart extends SectionPart {
 		}
 
 		manager.add(new DeleteServicesAction(selection, cloudServer.getBehaviour(), editorPage));
-				
-		manager.add(new ServiceToApplicationsBindingAction(
-				selection, 
-				cloudServer.getBehaviour(), 
-				editorPage));		
-		
-		// FIXNS: Disable Caldecott feature in 1.5.1 until feature is supported
-		// in the client-lib
-		// List<IAction> caldecottAction = new
-		// TunnelActionProvider(cloudServer).getTunnelActions(selection,
-		// editorPage);
-		// for (IAction action : caldecottAction) {
-		// manager.add(action);
-		// }
+
+		// [87165642] - For now only support service binding/unbinding for one selected
+		// service
+		if (selection.size() == 1) {
+			manager.add(new ServiceToApplicationsBindingAction(selection, cloudServer.getBehaviour(), editorPage));
+		}
 	}
 
 	private void fillApplicationsContextMenu(IMenuManager manager) {

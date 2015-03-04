@@ -1,9 +1,9 @@
 /*******************************************************************************
- * Copyright (c) 2013, 2014 Pivotal Software, Inc. 
+ * Copyright (c) 2013, 2015 Pivotal Software, Inc. 
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Apache License, 
- * Version 2.0 (the "License�); you may not use this file except in compliance 
+ * Version 2.0 (the "License"); you may not use this file except in compliance 
  * with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -19,6 +19,7 @@
  ********************************************************************************/
 package org.cloudfoundry.ide.eclipse.server.ui.internal;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.cloudfoundry.client.lib.domain.CloudService;
@@ -27,7 +28,6 @@ import org.cloudfoundry.ide.eclipse.server.core.internal.ApplicationUrlLookupSer
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudErrorUtil;
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryPlugin;
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryServer;
-import org.cloudfoundry.ide.eclipse.server.core.internal.RepublishModule;
 import org.cloudfoundry.ide.eclipse.server.core.internal.application.ManifestParser;
 import org.cloudfoundry.ide.eclipse.server.core.internal.client.CloudFoundryApplicationModule;
 import org.cloudfoundry.ide.eclipse.server.core.internal.client.DeploymentConfiguration;
@@ -40,12 +40,10 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Status;
-import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.PlatformUI;
-import org.eclipse.wst.server.core.IModule;
 
 /**
  * Prepares an application for deployment. Application deployments are defined
@@ -79,25 +77,6 @@ public class ApplicationDeploymentUIHandler {
 			final CloudFoundryApplicationModule appModule, final IProgressMonitor monitor) throws CoreException,
 			OperationCanceledException {
 
-		// First check if the module is set for automatic republish (i.e. a
-		// prior publish for the application
-		// failed, but the deployment info is available through the republish
-		// module
-
-		IModule module = appModule.getLocalModule();
-
-		RepublishModule repModule = CloudFoundryPlugin.getModuleCache().getData(server.getServerOriginal())
-				.untagForAutomaticRepublish(module);
-
-		if (repModule != null) {
-			ApplicationDeploymentInfo republishDeploymentInfo = repModule.getDeploymentInfo();
-			if (republishDeploymentInfo != null) {
-				DeploymentInfoWorkingCopy copy = appModule.resolveDeploymentInfoWorkingCopy(monitor);
-				copy.setInfo(republishDeploymentInfo);
-				copy.save();
-			}
-		}
-
 		// Validate the existing deployment info. Do NOT save or make changes to
 		// the deployment info prior to this stage
 		// (for example, saving a working copy of the deployment info with
@@ -124,7 +103,8 @@ public class ApplicationDeploymentUIHandler {
 
 			if (providerDelegate == null) {
 				throw CloudErrorUtil.toCoreException("Failed to open application deployment wizard for: " //$NON-NLS-1$
-						+ appModule.getDeployedApplicationName() + " when attempting to push application to " //$NON-NLS-1$
+						+ appModule.getDeployedApplicationName()
+						+ " when attempting to push application to " //$NON-NLS-1$
 						+ server.getServer().getName()
 						+ ". No application provider found that corresponds to the application type: " //$NON-NLS-1$
 						+ appModule.getLocalModule().getModuleType().getId());
@@ -165,6 +145,11 @@ public class ApplicationDeploymentUIHandler {
 			final IStatus[] status = { Status.OK_STATUS };
 			final DeploymentInfoWorkingCopy finWorkingCopy = workingCopy;
 			final DeploymentConfiguration[] configuration = new DeploymentConfiguration[1];
+
+			// Update the lookup
+			ApplicationUrlLookupService.update(server, monitor);
+			final List<CloudService> addedServices = new ArrayList<CloudService>();
+
 			Display.getDefault().syncExec(new Runnable() {
 				public void run() {
 
@@ -172,8 +157,6 @@ public class ApplicationDeploymentUIHandler {
 							finWorkingCopy, providerDelegate);
 
 					try {
-						// Update the lookup
-						ApplicationUrlLookupService.update(server, monitor);
 						WizardDialog dialog = new WizardDialog(PlatformUI.getWorkbench().getModalDialogShellProvider()
 								.getShell(), wizard);
 						int dialogueStatus = dialog.open();
@@ -181,26 +164,12 @@ public class ApplicationDeploymentUIHandler {
 						if (dialogueStatus == Dialog.OK) {
 
 							// First add any new services to the server
-							final List<CloudService> addedServices = wizard.getCloudServicesToCreate();
+							List<CloudService> services = wizard.getCloudServicesToCreate();
+							if (services != null) {
+								addedServices.addAll(services);
+							}
 							writeToManifest[0] = wizard.persistManifestChanges();
 							configuration[0] = wizard.getDeploymentConfiguration();
-
-							if (addedServices != null && !addedServices.isEmpty()) {
-								IProgressMonitor subMonitor = new SubProgressMonitor(monitor, addedServices.size());
-								try {
-									server.getBehaviour().createService(addedServices.toArray(new CloudService[0]),
-											subMonitor);
-								}
-								catch (CoreException e) {
-									// Do not let service creation errors
-									// stop the application deployment
-									CloudFoundryPlugin.log(e);
-								}
-								finally {
-									subMonitor.done();
-								}
-							}
-
 						}
 						else {
 							cancelled[0] = true;
@@ -223,6 +192,19 @@ public class ApplicationDeploymentUIHandler {
 				throw new OperationCanceledException();
 			}
 			else {
+
+				if (!addedServices.isEmpty()) {
+					try {
+						server.getBehaviour().operations().createServices(addedServices.toArray(new CloudService[0]))
+								.run(monitor);
+					}
+					catch (CoreException e) {
+						// Do not let service creation errors
+						// stop the application deployment
+						CloudFoundryPlugin.logError(e);
+					}
+				}
+
 				if (status[0].isOK()) {
 					status[0] = appModule.validateDeploymentInfo();
 				}
@@ -231,17 +213,13 @@ public class ApplicationDeploymentUIHandler {
 				}
 				else if (writeToManifest[0]) {
 
-					IProgressMonitor subMonitor = new SubProgressMonitor(monitor, 1);
 					try {
-						new ManifestParser(appModule, server).write(subMonitor, oldInfo);
+						new ManifestParser(appModule, server).write(monitor, oldInfo);
 					}
 					catch (Throwable ce) {
 						// Do not let this error propagate, as failing to write
 						// to the manifest should not stop the app's deployment
 						CloudFoundryPlugin.logError(ce);
-					}
-					finally {
-						subMonitor.done();
 					}
 				}
 

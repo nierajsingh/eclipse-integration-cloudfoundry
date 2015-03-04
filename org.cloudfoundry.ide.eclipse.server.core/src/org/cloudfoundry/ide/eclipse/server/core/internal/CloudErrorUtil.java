@@ -1,9 +1,9 @@
 /*******************************************************************************
- * Copyright (c) 2013, 2014 Pivotal Software, Inc. 
+ * Copyright (c) 2013, 2015 Pivotal Software, Inc. 
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Apache License, 
- * Version 2.0 (the "License�); you may not use this file except in compliance 
+ * Version 2.0 (the "License"); you may not use this file except in compliance 
  * with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -31,6 +31,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.osgi.util.NLS;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.client.resource.OAuth2AccessDeniedException;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
@@ -128,15 +129,28 @@ public class CloudErrorUtil {
 	/**
 	 * Error due to invalid credentials, typically 401 or 403 HTTP errors.
 	 * Returns null if the error is NOT an invalid credentials error.
-	 * @param t error to parse
+	 * @param error error to parse
 	 * @return Error message if invalid credentials error (401 or 403), or null.
 	 */
-	public static String getInvalidCredentialsError(Throwable t) {
-		if (isUnauthorisedException(t)) {
+	public static String getInvalidCredentialsError(Throwable error) {
+		if (isUnauthorisedException(error)) {
 			return Messages.ERROR_WRONG_EMAIL_OR_PASSWORD_UNAUTHORISED;
 		}
-		else if (isForbiddenException(t)) {
+		else if (isForbiddenException(error)) {
 			return Messages.ERROR_WRONG_EMAIL_OR_PASSWORD_FORBIDDEN;
+		}
+		else {
+			OAuth2AccessDeniedException oauthException = null;
+
+			if (error instanceof OAuth2AccessDeniedException) {
+				oauthException = (OAuth2AccessDeniedException) error;
+			}
+			else if (error.getCause() instanceof OAuth2AccessDeniedException) {
+				oauthException = (OAuth2AccessDeniedException) error.getCause();
+			}
+			if (oauthException != null) {
+				return NLS.bind(Messages.ERROR_ACCESS_TOKEN, oauthException.getOAuth2ErrorCode());
+			}
 		}
 		return null;
 	}
@@ -165,6 +179,21 @@ public class CloudErrorUtil {
 			}
 		}
 		return false;
+	}
+
+	public static String getHostTakenError(Exception e) {
+		HttpClientErrorException badRequestException = getBadRequestException(e);
+		if (badRequestException != null) {
+			String message = getHttpErrorMessage(badRequestException);
+
+			if (message != null) {
+				message = message.toLowerCase();
+				if (message.contains("host") && message.contains("taken")) { //$NON-NLS-1$ //$NON-NLS-2$
+					return Messages.ERROR_HOST_TAKEN;
+				}
+			}
+		}
+		return null;
 	}
 
 	/**

@@ -1,9 +1,9 @@
 /*******************************************************************************
- * Copyright (c) 2014 Pivotal Software, Inc. 
+ * Copyright (c) 2014, 2015 Pivotal Software, Inc. 
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Apache License, 
- * Version 2.0 (the "License�); you may not use this file except in compliance 
+ * Version 2.0 (the "License"); you may not use this file except in compliance 
  * with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -37,6 +37,9 @@ import org.eclipse.osgi.util.NLS;
  * <p/>
  * By default, operations are performed only once and any error thrown will not
  * result in further attempts. Subclasses can override this behaviour.
+ * 
+ * @param <T> type of expected result from request. User {@link Void} if no
+ * result is expected
  */
 public abstract class BaseClientRequest<T> {
 
@@ -51,6 +54,14 @@ public abstract class BaseClientRequest<T> {
 	}
 
 	/**
+	 * User-visible label describing the request. Must not be null.
+	 * @return Non-null user-visible label.
+	 */
+	public String getRequestLabel() {
+		return label;
+	}
+
+	/**
 	 * 
 	 * @return result of client operation
 	 * @throws CoreException if failure occurred while attempting to execute the
@@ -58,11 +69,12 @@ public abstract class BaseClientRequest<T> {
 	 */
 	public T run(IProgressMonitor monitor) throws CoreException {
 
-		SubMonitor subProgress = SubMonitor.convert(monitor, label, 100);
+		SubMonitor subProgress = SubMonitor.convert(monitor);
+		subProgress.subTask(getRequestLabel());
 
 		CloudFoundryOperations client = getClient(subProgress);
 		if (client == null) {
-			throw CloudErrorUtil.toCoreException(NLS.bind(Messages.ERROR_NO_CLIENT, label));
+			throw CloudErrorUtil.toCoreException(NLS.bind(Messages.ERROR_NO_CLIENT, getRequestLabel()));
 		}
 
 		HttpTracer.getCurrent().trace(client);

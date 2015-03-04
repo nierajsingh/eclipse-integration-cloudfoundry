@@ -1,9 +1,9 @@
 /*******************************************************************************
- * Copyright (c) 2013, 2014 Pivotal Software, Inc. 
+ * Copyright (c) 2013, 2015 Pivotal Software, Inc. 
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Apache License, 
- * Version 2.0 (the "License�); you may not use this file except in compliance 
+ * Version 2.0 (the "License"); you may not use this file except in compliance 
  * with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -43,6 +43,7 @@ import org.cloudfoundry.ide.eclipse.server.core.internal.CloudErrorUtil;
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryPlugin;
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryProjectUtil;
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryServer;
+import org.cloudfoundry.ide.eclipse.server.core.internal.Messages;
 import org.cloudfoundry.ide.eclipse.server.core.internal.client.CloudFoundryApplicationModule;
 import org.cloudfoundry.ide.eclipse.server.core.internal.client.DeploymentInfoWorkingCopy;
 import org.cloudfoundry.ide.eclipse.server.core.internal.client.LocalCloudService;
@@ -52,6 +53,7 @@ import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.SubMonitor;
+import org.eclipse.osgi.util.NLS;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.DumperOptions.FlowStyle;
 import org.yaml.snakeyaml.Yaml;
@@ -228,6 +230,11 @@ public class ManifestParser {
 	}
 
 	protected String getStringValue(Map<?, ?> containingMap, String propertyName) {
+
+		if (containingMap == null) {
+			return null;
+		}
+
 		Object valObj = containingMap.get(propertyName);
 
 		if (valObj instanceof String) {
@@ -237,6 +244,11 @@ public class ManifestParser {
 	}
 
 	protected Integer getIntegerValue(Map<?, ?> containingMap, String propertyName) {
+
+		if (containingMap == null) {
+			return null;
+		}
+
 		Object valObj = containingMap.get(propertyName);
 
 		if (valObj instanceof Integer) {
@@ -313,7 +325,7 @@ public class ManifestParser {
 	 */
 	public DeploymentInfoWorkingCopy load(IProgressMonitor monitor) throws CoreException {
 		SubMonitor subMonitor = SubMonitor.convert(monitor);
-		subMonitor.beginTask("Parsing and loading application manifest file", 6); //$NON-NLS-1$
+		subMonitor.beginTask(NLS.bind(Messages.ManifestParser_READING, appModule.getDeployedApplicationName()), 6);
 		DeploymentInfoWorkingCopy workingCopy;
 		try {
 			workingCopy = appModule.resolveDeploymentInfoWorkingCopy(subMonitor);
@@ -336,6 +348,9 @@ public class ManifestParser {
 			subMonitor.worked(1);
 			if (appName != null) {
 				workingCopy.setDeploymentName(appName);
+			}
+			else {
+				CloudFoundryPlugin.logError(Messages.ManifestParser_NO_APP_NAME);
 			}
 
 			readMemory(application, workingCopy);
@@ -361,6 +376,11 @@ public class ManifestParser {
 				workingCopy.setArchive(archiveURL);
 			}
 
+			Integer instances = getIntegerValue(application, INSTANCES_PROP);
+			if (instances != null) {
+				workingCopy.setInstances(instances);
+			}
+
 		}
 		finally {
 			subMonitor.done();
@@ -371,6 +391,10 @@ public class ManifestParser {
 
 	protected void readEnvars(DeploymentInfoWorkingCopy workingCopy, Map<?, ?> applications) {
 		Map<?, ?> propertiesMap = getContainingPropertiesMap(applications, ENV_PROP);
+
+		if (propertiesMap == null) {
+			return;
+		}
 
 		List<EnvironmentVariable> variables = new ArrayList<EnvironmentVariable>();
 		for (Entry<?, ?> entry : propertiesMap.entrySet()) {
@@ -430,24 +454,44 @@ public class ManifestParser {
 	}
 
 	protected void readApplicationURL(Map<?, ?> application, DeploymentInfoWorkingCopy workingCopy, String appName,
-			IProgressMonitor monitor) throws CoreException {
+			IProgressMonitor monitor) {
 		String subdomain = getStringValue(application, SUB_DOMAIN_PROP);
 		String domain = getStringValue(application, DOMAIN_PROP);
 
-		if (domain != null || subdomain != null) {
-			CloudApplicationURL cloudURL = new CloudApplicationURL(subdomain, domain);
+		// A URL can only be constructed from the manifest if either a domain or
+		// a subdomain is specified. If neither is specified, but the app name
+		// is, the app name is used as the subdomain.Otherwise the
+		// deployment process will generate a URL from the app name, but it is
+		// not necessary to specify that URL here.
+		if (subdomain == null && domain == null && appName == null) {
+			return;
+		}
+		CloudApplicationURL cloudURL = null;
 
-			try {
-				cloudURL = ApplicationUrlLookupService.update(cloudServer, monitor).validateCloudApplicationUrl(
-						cloudURL);
-			}
-			catch (CoreException e) {
-				// Log this as at this stage, but don't let it prevent
-				// further
-				// parsing
-				CloudFoundryPlugin.logError(e);
+		try {
+			ApplicationUrlLookupService urlLookup = ApplicationUrlLookupService.update(cloudServer, monitor);
+
+			if (subdomain == null) {
+				subdomain = appName;
 			}
 
+			if (domain == null) {
+				// If no domain is specified get a URL with a default domain
+				cloudURL = urlLookup.getDefaultApplicationURL(subdomain);
+			}
+			else {
+				// retain the URL even if it fails validation as it may contain
+				// partial information that can still be displayed
+				// to a user
+				cloudURL = new CloudApplicationURL(subdomain, domain);
+				cloudURL = urlLookup.validateCloudApplicationUrl(cloudURL);
+			}
+		}
+		catch (CoreException e) {
+			CloudFoundryPlugin.logError(e);
+		}
+
+		if (cloudURL != null) {
 			List<String> urls = Arrays.asList(cloudURL.getUrl());
 			workingCopy.setUris(urls);
 		}
@@ -457,7 +501,7 @@ public class ManifestParser {
 		Integer memoryVal = getIntegerValue(application, MEMORY_PROP);
 
 		// If not in Integer form, try String as the memory may end in with a
-		// 'G'
+		// 'G' or 'M'
 		if (memoryVal == null) {
 			String memoryStringVal = getStringValue(application, MEMORY_PROP);
 			if (memoryStringVal != null && memoryStringVal.length() > 0) {
@@ -605,208 +649,232 @@ public class ManifestParser {
 			return false;
 		}
 
-		// Fetch the previous name, in case the app name was changed. This will
-		// allow the old
-		// entry to be replaced by the new one, since application entries are
-		// looked up by application name.
-		String previousName = previousInfo != null ? previousInfo.getDeploymentName() : null;
+		SubMonitor subProgress = SubMonitor.convert(monitor);
+		subProgress.beginTask(NLS.bind(Messages.ManifestParser_WRITING, appModule.getDeployedApplicationName()), 5);
 
-		String appName = deploymentInfo.getDeploymentName();
+		try {
 
-		Map<Object, Object> deploymentInfoYaml = parseManifestFromFile();
+			// Fetch the previous name, in case the app name was changed. This
+			// will
+			// allow the old
+			// entry to be replaced by the new one, since application entries
+			// are
+			// looked up by application name.
+			String previousName = previousInfo != null ? previousInfo.getDeploymentName() : null;
 
-		if (deploymentInfoYaml == null) {
-			deploymentInfoYaml = new LinkedHashMap<Object, Object>();
-		}
+			String appName = deploymentInfo.getDeploymentName();
 
-		Object applicationsObj = deploymentInfoYaml.get(APPLICATIONS_PROP);
-		List<Map<Object, Object>> applicationsList = null;
-		if (applicationsObj == null) {
-			applicationsList = new ArrayList<Map<Object, Object>>();
-			deploymentInfoYaml.put(APPLICATIONS_PROP, applicationsList);
-		}
-		else if (applicationsObj instanceof List<?>) {
-			applicationsList = (List<Map<Object, Object>>) applicationsObj;
-		}
-		else {
-			throw CloudErrorUtil.toCoreException("Expected a top-level list of applications in: " + relativePath //$NON-NLS-1$
-					+ ". Unable to continue writing manifest values."); //$NON-NLS-1$
-		}
+			Map<Object, Object> deploymentInfoYaml = parseManifestFromFile();
 
-		Map<Object, Object> applicationWithSameName = null;
+			subProgress.worked(1);
 
-		Map<Object, Object> oldApplication = null;
-
-		// Each application listing should be a map. Find both an entry with the
-		// same name as the application name
-		// As well as an entry with an older name of the application, in case
-		// the application has changed.
-		for (Object appMap : applicationsList) {
-			if (appMap instanceof Map<?, ?>) {
-				Map<Object, Object> properties = (Map<Object, Object>) appMap;
-				String name = getStringValue(properties, NAME_PROP);
-				if (appName.equals(name)) {
-					applicationWithSameName = properties;
-				}
-				else if (previousName != null && previousName.equals(name)) {
-					oldApplication = properties;
-				}
-			}
-		}
-
-		// The order of priority in terms of replacing an existing entry is : 1.
-		// old application entry that
-		// has been changed will get replaced 2. existing entry with same name
-		// as app will now get replaced2.
-		Map<Object, Object> application = oldApplication != null ? oldApplication : applicationWithSameName;
-
-		if (application == null) {
-			application = new LinkedHashMap<Object, Object>();
-			applicationsList.add(application);
-		}
-
-		application.put(NAME_PROP, appName);
-
-		String memory = getMemoryAsString(deploymentInfo.getMemory());
-		if (memory != null) {
-			application.put(MEMORY_PROP, memory);
-		}
-
-		int instances = deploymentInfo.getInstances();
-		if (instances > 0) {
-			application.put(INSTANCES_PROP, instances);
-		}
-
-		List<String> urls = deploymentInfo.getUris();
-		if (urls != null && !urls.isEmpty()) {
-			// Persist only the first URL
-			String url = urls.get(0);
-
-			ApplicationUrlLookupService lookup = ApplicationUrlLookupService.getCurrentLookup(cloudServer);
-			CloudApplicationURL cloudUrl = lookup.getCloudApplicationURL(url);
-			String subdomain = cloudUrl.getSubdomain();
-			String domain = cloudUrl.getDomain();
-
-			if (subdomain != null) {
-				application.put(SUB_DOMAIN_PROP, subdomain);
+			if (deploymentInfoYaml == null) {
+				deploymentInfoYaml = new LinkedHashMap<Object, Object>();
 			}
 
-			if (domain != null) {
-				application.put(DOMAIN_PROP, domain);
+			Object applicationsObj = deploymentInfoYaml.get(APPLICATIONS_PROP);
+			List<Map<Object, Object>> applicationsList = null;
+			if (applicationsObj == null) {
+				applicationsList = new ArrayList<Map<Object, Object>>();
+				deploymentInfoYaml.put(APPLICATIONS_PROP, applicationsList);
 			}
-		}
-
-		List<EnvironmentVariable> envvars = deploymentInfo.getEnvVariables();
-
-		Map<Object, Object> varMap = new LinkedHashMap<Object, Object>();
-
-		// Clear the list of environment variables first.
-		application.put(ENV_PROP, varMap);
-		if (envvars != null) {
-			for (EnvironmentVariable var : envvars) {
-				varMap.put(var.getVariable(), var.getValue());
+			else if (applicationsObj instanceof List<?>) {
+				applicationsList = (List<Map<Object, Object>>) applicationsObj;
 			}
-		}
+			else {
+				throw CloudErrorUtil.toCoreException("Expected a top-level list of applications in: " + relativePath //$NON-NLS-1$
+						+ ". Unable to continue writing manifest values."); //$NON-NLS-1$
+			}
 
-		Staging staging = deploymentInfo.getStaging();
-		if (staging != null && staging.getBuildpackUrl() != null) {
-			application.put(BUILDPACK_PROP, staging.getBuildpackUrl());
-		}
+			Map<Object, Object> applicationWithSameName = null;
 
-		String archiveURL = deploymentInfo.getArchive();
-		if (archiveURL != null) {
-			application.put(PATH_PROP, archiveURL);
-		}
+			Map<Object, Object> oldApplication = null;
 
-		// Regardless if there are services or not, always clear list of
-		// services in the manifest, and replace with new list. The list of
-		// services in the
-		// deployment info has to match the content in the manifest.
-
-		Map<Object, Object> services = new LinkedHashMap<Object, Object>();
-		application.put(SERVICES_PROP, services);
-
-		List<CloudService> servicesToBind = deploymentInfo.getServices();
-
-		if (servicesToBind != null) {
-
-			for (CloudService service : servicesToBind) {
-				String serviceName = service.getName();
-				if (!services.containsKey(serviceName)) {
-
-					// Only persist the service if it has complete information
-					if (containsServiceCreationDescription(service)) {
-						Map<String, String> serviceDescription = new LinkedHashMap<String, String>();
-						String label = service.getLabel();
-						if (label != null) {
-							serviceDescription.put(LABEL_PROP, label);
-						}
-						String version = service.getVersion();
-						if (version != null) {
-							serviceDescription.put(VERSION_PROP, version);
-						}
-						String plan = service.getPlan();
-						if (plan != null) {
-							serviceDescription.put(PLAN_PROP, plan);
-						}
-						String provider = service.getProvider();
-						if (provider != null) {
-							serviceDescription.put(PROVIDER_PROP, provider);
-						}
-
-						// Service name is the key in the yaml map
-						services.put(serviceName, serviceDescription);
+			// Each application listing should be a map. Find both an entry with
+			// the
+			// same name as the application name
+			// As well as an entry with an older name of the application, in
+			// case
+			// the application has changed.
+			for (Object appMap : applicationsList) {
+				if (appMap instanceof Map<?, ?>) {
+					Map<Object, Object> properties = (Map<Object, Object>) appMap;
+					String name = getStringValue(properties, NAME_PROP);
+					if (appName.equals(name)) {
+						applicationWithSameName = properties;
+					}
+					else if (previousName != null && previousName.equals(name)) {
+						oldApplication = properties;
 					}
 				}
 			}
-		}
 
-		if (deploymentInfoYaml.isEmpty()) {
-			return false;
-		}
+			// The order of priority in terms of replacing an existing entry is
+			// : 1.
+			// old application entry that
+			// has been changed will get replaced 2. existing entry with same
+			// name
+			// as app will now get replaced2.
+			Map<Object, Object> application = oldApplication != null ? oldApplication : applicationWithSameName;
 
-		DumperOptions options = new DumperOptions();
-		options.setExplicitStart(true);
-		options.setCanonical(false);
-		options.setPrettyFlow(true);
-		options.setDefaultFlowStyle(FlowStyle.BLOCK);
-		Yaml yaml = new Yaml(options);
-		String manifestValue = yaml.dump(deploymentInfoYaml);
-
-		if (manifestValue == null) {
-			throw CloudErrorUtil.toCoreException("Manifest map for " + appModule.getDeployedApplicationName() //$NON-NLS-1$
-					+ " contained values but yaml parser failed to serialise the map. : " + deploymentInfoYaml); //$NON-NLS-1$
-		}
-
-		OutputStream outStream = null;
-		try {
-			outStream = getOutStream();
-			if (outStream == null) {
-				throw CloudErrorUtil.toCoreException("No output stream could be opened to: " + relativePath //$NON-NLS-1$
-						+ ". Unable to write changes to the application's manifest file for: " //$NON-NLS-1$
-						+ appModule.getDeployedApplicationName());
+			if (application == null) {
+				application = new LinkedHashMap<Object, Object>();
+				applicationsList.add(application);
 			}
 
-			outStream.write(manifestValue.getBytes());
-			outStream.flush();
-			refreshProject(monitor);
-			return true;
+			application.put(NAME_PROP, appName);
 
-		}
-		catch (IOException io) {
-			throw CloudErrorUtil.toCoreException(io);
+			String memory = getMemoryAsString(deploymentInfo.getMemory());
+			if (memory != null) {
+				application.put(MEMORY_PROP, memory);
+			}
+
+			int instances = deploymentInfo.getInstances();
+			if (instances > 0) {
+				application.put(INSTANCES_PROP, instances);
+			}
+
+			List<String> urls = deploymentInfo.getUris();
+			if (urls != null && !urls.isEmpty()) {
+				// Persist only the first URL
+				String url = urls.get(0);
+
+				ApplicationUrlLookupService lookup = ApplicationUrlLookupService.getCurrentLookup(cloudServer);
+				CloudApplicationURL cloudUrl = lookup.getCloudApplicationURL(url);
+				String subdomain = cloudUrl.getSubdomain();
+				String domain = cloudUrl.getDomain();
+
+				if (subdomain != null) {
+					application.put(SUB_DOMAIN_PROP, subdomain);
+				}
+
+				if (domain != null) {
+					application.put(DOMAIN_PROP, domain);
+				}
+			}
+
+			List<EnvironmentVariable> envvars = deploymentInfo.getEnvVariables();
+
+			Map<Object, Object> varMap = new LinkedHashMap<Object, Object>();
+
+			// Clear the list of environment variables first.
+			application.put(ENV_PROP, varMap);
+			if (envvars != null) {
+				for (EnvironmentVariable var : envvars) {
+					varMap.put(var.getVariable(), var.getValue());
+				}
+			}
+
+			Staging staging = deploymentInfo.getStaging();
+			if (staging != null && staging.getBuildpackUrl() != null) {
+				application.put(BUILDPACK_PROP, staging.getBuildpackUrl());
+			}
+
+			String archiveURL = deploymentInfo.getArchive();
+			if (archiveURL != null) {
+				application.put(PATH_PROP, archiveURL);
+			}
+
+			// Regardless if there are services or not, always clear list of
+			// services in the manifest, and replace with new list. The list of
+			// services in the
+			// deployment info has to match the content in the manifest.
+
+			Map<Object, Object> services = new LinkedHashMap<Object, Object>();
+			application.put(SERVICES_PROP, services);
+
+			List<CloudService> servicesToBind = deploymentInfo.getServices();
+
+			if (servicesToBind != null) {
+
+				for (CloudService service : servicesToBind) {
+					String serviceName = service.getName();
+					if (!services.containsKey(serviceName)) {
+
+						// Only persist the service if it has complete
+						// information
+						if (containsServiceCreationDescription(service)) {
+							Map<String, String> serviceDescription = new LinkedHashMap<String, String>();
+							String label = service.getLabel();
+							if (label != null) {
+								serviceDescription.put(LABEL_PROP, label);
+							}
+							String version = service.getVersion();
+							if (version != null) {
+								serviceDescription.put(VERSION_PROP, version);
+							}
+							String plan = service.getPlan();
+							if (plan != null) {
+								serviceDescription.put(PLAN_PROP, plan);
+							}
+							String provider = service.getProvider();
+							if (provider != null) {
+								serviceDescription.put(PROVIDER_PROP, provider);
+							}
+
+							// Service name is the key in the yaml map
+							services.put(serviceName, serviceDescription);
+						}
+					}
+				}
+			}
+
+			subProgress.worked(1);
+
+			if (deploymentInfoYaml.isEmpty()) {
+				return false;
+			}
+
+			DumperOptions options = new DumperOptions();
+			options.setExplicitStart(true);
+			options.setCanonical(false);
+			options.setPrettyFlow(true);
+			options.setDefaultFlowStyle(FlowStyle.BLOCK);
+			Yaml yaml = new Yaml(options);
+			String manifestValue = yaml.dump(deploymentInfoYaml);
+
+			subProgress.worked(1);
+			if (manifestValue == null) {
+				throw CloudErrorUtil.toCoreException("Manifest map for " + appModule.getDeployedApplicationName() //$NON-NLS-1$
+						+ " contained values but yaml parser failed to serialise the map. : " + deploymentInfoYaml); //$NON-NLS-1$
+			}
+
+			OutputStream outStream = null;
+			try {
+				outStream = getOutStream();
+				if (outStream == null) {
+					throw CloudErrorUtil.toCoreException("No output stream could be opened to: " + relativePath //$NON-NLS-1$
+							+ ". Unable to write changes to the application's manifest file for: " //$NON-NLS-1$
+							+ appModule.getDeployedApplicationName());
+				}
+
+				outStream.write(manifestValue.getBytes());
+				outStream.flush();
+
+				subProgress.worked(1);
+				refreshProject(monitor);
+				subProgress.worked(1);
+				return true;
+
+			}
+			catch (IOException io) {
+				throw CloudErrorUtil.toCoreException(io);
+			}
+			finally {
+				if (outStream != null) {
+					try {
+						outStream.close();
+					}
+					catch (IOException io) {
+						// Ignore
+					}
+				}
+			}
+
 		}
 		finally {
-			if (outStream != null) {
-				try {
-					outStream.close();
-				}
-				catch (IOException io) {
-					// Ignore
-				}
-			}
+			subProgress.done();
 		}
-
 	}
 
 	protected String getMemoryAsString(int memory) {

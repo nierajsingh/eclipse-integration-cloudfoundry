@@ -1,9 +1,9 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2014 Pivotal Software, Inc.
+ * Copyright (c) 2012, 2015 Pivotal Software, Inc.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Apache License,
- * Version 2.0 (the "License�); you may not use this file except in compliance
+ * Version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -24,72 +24,41 @@ import java.util.List;
 
 import org.cloudfoundry.client.lib.domain.CloudApplication;
 import org.cloudfoundry.client.lib.domain.CloudService;
-import org.cloudfoundry.client.lib.domain.CloudServiceOffering;
-import org.cloudfoundry.client.lib.domain.CloudServicePlan;
+import org.cloudfoundry.ide.eclipse.server.core.internal.client.CloudFoundryApplicationModule;
+import org.cloudfoundry.ide.eclipse.server.core.internal.client.ICloudFoundryOperation;
 import org.cloudfoundry.ide.eclipse.server.tests.util.CloudFoundryTestFixture;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.NullProgressMonitor;
 
-public class AbstractCloudFoundryServicesTest extends AbstractCloudFoundryTest {
+public class AbstractCloudFoundryServicesTest extends AbstractRefreshCloudTest {
 
 	protected void deleteService(CloudService service) throws CoreException {
 		harness.deleteService(service);
 	}
 
 	protected CloudService createCloudService(String name, String label, String plan) throws CoreException {
-		CloudServiceOffering serviceConfiguration = getServiceConfiguration(label);
-		if (serviceConfiguration != null) {
-			CloudService service = new CloudService();
-			service.setName(name);
-			service.setLabel(label);
-			service.setVersion(serviceConfiguration.getVersion());
+		CloudService toCreate = getCloudServiceToCreate(name, label, plan);
 
-			boolean planExists = false;
-
-			List<CloudServicePlan> plans = serviceConfiguration.getCloudServicePlans();
-
-			for (CloudServicePlan pln : plans) {
-				if (plan.equals(pln.getName())) {
-					planExists = true;
-					break;
-				}
-			}
-
-			if (!planExists) {
-				throw CloudErrorUtil.toCoreException("No plan: " + plan + " found for service :" + label);
-			}
-			service.setPlan(plan);
-
-			createService(service);
-			return service;
-		}
-		else {
+		if (toCreate == null) {
 			throw CloudErrorUtil.toCoreException("Unable to create service : " + label
 					+ ". Service does not exist in the Cloud space.");
 		}
+
+		createService(toCreate);
+		return toCreate;
 	}
 
-	protected CloudServiceOffering getServiceConfiguration(String vendor) throws CoreException {
-		List<CloudServiceOffering> serviceConfigurations = serverBehavior
-				.getServiceOfferings(new NullProgressMonitor());
-		if (serviceConfigurations != null) {
-			for (CloudServiceOffering serviceConfiguration : serviceConfigurations) {
-				if (vendor.equals(serviceConfiguration.getLabel())) {
-					return serviceConfiguration;
-				}
-			}
-		}
-		return null;
-	}
-
-	protected void bindServiceToApp(CloudApplication application, CloudService service) throws Exception {
+	protected ICloudFoundryOperation getBindServiceOp(CloudFoundryApplicationModule appModule, CloudService service)
+			throws Exception {
 		List<String> servicesToBind = new ArrayList<String>();
 		servicesToBind.add(service.getName());
-		serverBehavior.updateServices(application.getName(), servicesToBind, new NullProgressMonitor());
+
+		return serverBehavior.operations().bindServices(appModule, servicesToBind);
 	}
 
-	protected void unbindServiceToApp(CloudApplication application, CloudService service) throws Exception {
-		CloudApplication updatedApplication = getUpdatedApplication(application.getName());
+	protected ICloudFoundryOperation getUnbindServiceOp(CloudFoundryApplicationModule appModule, CloudService service)
+			throws Exception {
+		CloudApplication updatedApplication = getUpdatedApplication(appModule.getDeployedApplicationName());
 		List<String> boundServices = updatedApplication.getServices();
 		List<String> servicesToUpdate = new ArrayList<String>();
 
@@ -105,9 +74,7 @@ public class AbstractCloudFoundryServicesTest extends AbstractCloudFoundryTest {
 		if (servicesToUpdate.contains(service.getName())) {
 			servicesToUpdate.remove(service.getName());
 		}
-		serverBehavior.updateServicesAndCloseCaldecottTunnels(application.getName(), servicesToUpdate,
-				new NullProgressMonitor());
-
+		return serverBehavior.operations().bindServices(appModule, servicesToUpdate);
 	}
 
 	protected void assertServiceBound(String serviceName, CloudApplication application) throws Exception {
@@ -137,7 +104,7 @@ public class AbstractCloudFoundryServicesTest extends AbstractCloudFoundryTest {
 	}
 
 	protected void createService(CloudService service) throws CoreException {
-		serverBehavior.createService(new CloudService[] { service }, new NullProgressMonitor());
+		serverBehavior.operations().createServices(new CloudService[] { service }).run(new NullProgressMonitor());
 	}
 
 	protected void assertServiceExists(CloudService expectedService) throws Exception {

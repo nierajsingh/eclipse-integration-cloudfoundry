@@ -58,7 +58,7 @@ public class Messages extends NLS {
 	public static String COMMONTXT_DOMAIN;
 
 	public static String COMMONTXT_ADD;
-	
+
 	public static String COMMONTXT_ENTER_VALID_URL;
 
 	/*
@@ -96,7 +96,7 @@ public class Messages extends NLS {
 	public static String ApplicationActionMenuControl_TEXT_SELECT_MODE;
 
 	public static String ApplicationActionMenuControl_TEXT_SELECT_MODE_FOR;
-	
+
 	public static String ApplicationLogConsoleManager_APPLICATION_NOT_PUBLISHED;
 
 	public static String ApplicationMasterPart_ERROR_DEPLOY_FAIL_BODY;
@@ -162,9 +162,11 @@ public class Messages extends NLS {
 	public static String ApplicationDetailsPart_TEXT_CPU_CIRE;
 
 	public static String ApplicationDetailsPart_TEXT_DEBUG;
-	
+
+	public static String ApplicationDetailsPart_TEXT_DEBUG_TOOLTIP;
+
 	public static String ApplicationDetailsPart_TEXT_DEBUG_DISCONNECT;
-	
+
 	public static String ApplicationDetailsPart_TEXT_DISK;
 
 	public static String ApplicationDetailsPart_TEXT_DISK_LIMIT;
@@ -199,7 +201,7 @@ public class Messages extends NLS {
 
 	public static String ApplicationDetailsPart_TEXT_RESTART;
 
-	public static String ApplicationDetailsPart_TEXT_RESTART_APP;
+	public static String ApplicationDetailsPart_TEXT_RESTART_TOOLTIP;
 
 	public static String ApplicationDetailsPart_TEXT_RESTART_IN_MODE;
 
@@ -215,13 +217,19 @@ public class Messages extends NLS {
 
 	public static String ApplicationDetailsPart_TEXT_START;
 
+	public static String ApplicationDetailsPart_TEXT_START_TOOLTIP;
+
 	public static String ApplicationDetailsPart_TEXT_STOP;
+
+	public static String ApplicationDetailsPart_TEXT_PUSH;
+
+	public static String ApplicationDetailsPart_TEXT_PUSH_TOOLTIP;
 
 	public static String ApplicationDetailsPart_TEXT_UPDATE_NOT_DEPLOYED;
 
 	public static String ApplicationDetailsPart_TEXT_UPDATE_RESTART;
 
-	public static String ApplicationDetailsPart_TEXT_UPDATE_RESTART_APP;
+	public static String ApplicationDetailsPart_TEXT_UPDATE_RESTART_TOOLTIP;
 
 	public static String ApplicationDetailsPart_TEXT_UPDATE_RESTART_IN_MODE;
 
@@ -240,6 +248,10 @@ public class Messages extends NLS {
 	public static String ApplicationURLWizard_TEXT_PAGE;
 
 	public static String ApplicationURLWizard_TITLE_MOD_APP_URL;
+
+	public static String CloudFoundryUiCallback_STARTING_CONSOLE;
+
+	public static String EditorAction_CLOUD_OPERATION;
 
 	public static String ERROR_VALID_SERVER_NAME;
 
@@ -388,7 +400,7 @@ public class Messages extends NLS {
 	public static String DebugUIProvider_DEBUG_TITLE;
 
 	public static String DebugUIProvider_DEBUG_APP_RESTART_MESSAGE;
-	
+
 	public static String DeleteServicesAction_TEXT_DELETE;
 
 	public static String DeleteServicesAction_TEXT_DELETE_CONFIRMATION;
@@ -617,36 +629,50 @@ public class Messages extends NLS {
 
 	public static String CloudFoundryServiceWizard_ERROR_ADD_SERVICE;
 
-	public static String CloudFoundryServiceWizardPage1_ERROR_CONFIG_RETRIVE;
+	public static String CloudFoundryServiceWizardPage_ERROR_CONFIG_RETRIVE;
 
-	public static String CloudFoundryServiceWizardPage1_ERROR_INVALID_CHAR;
+	public static String CloudFoundryServiceWizardPage_ERROR_INVALID_CHAR;
 
-	public static String CloudFoundryServiceWizardPage1_LABEL_NO_AVAIL_SERVICE;
+	public static String CloudFoundryServiceWizardPage_TEXT_FINISH;
 
-	public static String CloudFoundryServiceWizardPage1_LABEL_PLAN;
+	public static String CloudFoundryServiceWizardPage_TEXT_SELECT_SERVICE_LIST;
 
-	public static String CloudFoundryServiceWizardPage1_TEXT_FILTER;
+	public static String CloudFoundryServiceWizardPage_TEXT_SET_SERVICE_NAME;
 
-	public static String CloudFoundryServiceWizardPage1_TEXT_FINISH;
+	public static String CloudFoundryServiceWizardPage_TTILE_SERVICE_CONFIG;
 
-	public static String CloudFoundryServiceWizardPage1_TEXT_SELECT;
+	public static String CloudFoundryServiceWizard_JOB_SUBTASK_VERIFYING_SERVICES;
 
-	public static String CloudFoundryServiceWizardPage1_TEXT_SELECT_SERVICE;
+	public static String CloudFoundryServiceWizard_JOB_TASK_CREATING_SERVICES;
 
-	public static String CloudFoundryServiceWizardPage1_TEXT_SELECT_SERVICE_LIST;
+	public static String CloudFoundryServiceWizardPageRightPanel_SERVICES_TO_CREATE;
 
-	public static String CloudFoundryServiceWizardPage1_TEXT_SET_NAME_PLAN;
+	public static String CloudFoundryServiceWizardPageRightPanel_NAME;
 
-	public static String CloudFoundryServiceWizardPage1_TEXT_SET_SERVICE_NAME;
+	public static String CloudFoundryServiceWizardPageRightPanel_PLAN;
 
-	public static String CloudFoundryServiceWizardPage1_TEXT_TYPE_FILTER;
+	public static String CloudFoundryServiceWizardPageRightPanel_ADD_A_SERVICE;
 
-	public static String CloudFoundryServiceWizardPage1_TTILE_SERVICE_CONFIG;
+	public static String CloudFoundryServiceWizardPageRightPanel_REMOVE_TOOLTIP;
+
+	public static String CloudFoundryServiceWizardPageRightPanel_EXISTING_SERVICE_DUPE;
+
+	public static String CloudFoundryServiceWizardPageRightPanel_ERROR_DUPE_SERVICE_NAMES_FOUND;
+
+	public static String CloudFoundryServiceWizardPageLeftPanel_FILTER_TITLE;
+
+	public static String CloudFoundryServiceWizardPageLeftPanel_DEFAULT_FILTER_TEXT;
+
+	public static String CloudFoundryServiceWizardPageLeftPanel_AVAILABLE_SERVICES;
+
+	public static String CloudFoundryServiceWizardPageLeftPanel_ADD;
+
+	public static String CloudFoundryServiceWizardPageLeftPanel_CLEAR;
 
 	public static String CloudRoutePart_UNDO;
 
 	public static String CloudFoundryUiCallback_ERROR_CALLBACK_TITLE;
-	
+
 	public static String CloudFoundryUiCallback_JOB_CF_ERROR;
 
 	public static String CloudFoundryURLNavigation_TEXT_OPEN_LABEL;
@@ -846,21 +872,23 @@ public class Messages extends NLS {
 	public static String RepublishApplicationHandler_ERROR_REPUBLISH_FAIL;
 
 	public static String MANAGE_SERVICES_TO_APPLICATIONS_TITLE;
-	
+
 	public static String MANAGE_SERVICES_TO_APPLICATIONS_DESCRIPTION;
-	
+
 	public static String MANAGE_SERVICES_TO_APPLICATIONS_ACTION;
-	
+
 	public static String MANAGE_SERVICES_TO_APPLICATIONS_FINISH;
-	
+
 	public static String MANAGE_SERVICES_TO_APPLICATIONS_SELECTION_DESCRIPTION;
-	
+
 	public static String MANAGE_SERVICES_TO_APPLICATIONS_GET_APPLICATION_NAMES;
-	
+
 	public static String MANAGE_SERVICES_TO_APPLICATIONS_FINISH_ERROR_TITLE;
-	
+
 	public static String MANAGE_SERVICES_TO_APPLICATIONS_FINISH_ERROR_DESCRIPTION;
-	
+
+	public static String CloudFoundryServiceWizardPage_GETTING_AVAILABLE_SERVICES;
+
 	private static final String BUNDLE_NAME = CloudFoundryServerUiPlugin.PLUGIN_ID + ".internal.Messages"; //$NON-NLS-1$
 
 	static {

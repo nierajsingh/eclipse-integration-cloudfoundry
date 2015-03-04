@@ -34,9 +34,6 @@ import org.cloudfoundry.ide.eclipse.server.core.internal.CloudErrorUtil;
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryBrandingExtensionPoint;
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryPlugin;
 import org.cloudfoundry.ide.eclipse.server.core.internal.CloudFoundryServer;
-import org.cloudfoundry.ide.eclipse.server.core.internal.CloudServerEvent;
-import org.cloudfoundry.ide.eclipse.server.core.internal.CloudServerListener;
-import org.cloudfoundry.ide.eclipse.server.core.internal.application.ApplicationChangeEvent;
 import org.cloudfoundry.ide.eclipse.server.core.internal.application.ManifestParser;
 import org.cloudfoundry.ide.eclipse.server.core.internal.client.CloudFoundryApplicationModule;
 import org.cloudfoundry.ide.eclipse.server.core.internal.client.CloudFoundryServerBehaviour;
@@ -48,8 +45,8 @@ import org.cloudfoundry.ide.eclipse.server.ui.internal.CloudFoundryImages;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.CloudUiUtil;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.DebugCommand;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.Messages;
-import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.CloudFoundryEditorAction.RefreshArea;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.DebugApplicationEditorAction;
+import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.EditorAction.RefreshArea;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.RemoveServicesFromApplicationAction;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.ShowConsoleEditorAction;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.StartStopApplicationAction;
@@ -57,10 +54,8 @@ import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.TerminateDebugEdi
 import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.UpdateApplicationMemoryAction;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.actions.UpdateInstanceCountAction;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.editor.AppStatsContentProvider.InstanceStatsAndInfo;
-import org.cloudfoundry.ide.eclipse.server.ui.internal.editor.ApplicationActionMenuControl.IButtonMenuListener;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.wizards.EnvVarsWizard;
 import org.cloudfoundry.ide.eclipse.server.ui.internal.wizards.MappedURLsWizard;
-import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -153,9 +148,9 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 
 	private IModule module;
 
-	private ApplicationActionMenuControl restartAppButton;
+	private Button startAppButton;
 
-	private ApplicationActionMenuControl updateRestartAppButton;
+	private Button updateRestartAppButton;
 
 	private final CloudFoundryServerBehaviour serverBehaviour;
 
@@ -169,9 +164,9 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 
 	private TableViewer servicesViewer;
 
-	private Button startAppButton;
+	private Button pushAppButton;
 
-	private Button debugControl;
+	private Button debugButton;
 
 	private Button stopAppButton;
 
@@ -179,11 +174,9 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 
 	private Text memoryText;
 
-	private CloudServerListener applicationChangeListener;
+	private Composite topButtonRow;
 
-	private Composite startButtonComposite;
-
-	private Composite restartButtonComposite;
+	private Composite lowerButtonRow;
 
 	/**
 	 * The toolkit used by the form part.
@@ -236,14 +229,11 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 			addDropSupport(servicesSection);
 			addDropSupport(instancesSection);
 		}
-
-		applicationChangeListener = new ApplicationChangeListener();
-		editorPage.addCloudServerListener(applicationChangeListener);
 	}
 
-	protected void refreshDebugControls(CloudFoundryApplicationModule appModule) {
+	public void refreshDebugControls(CloudFoundryApplicationModule appModule) {
 
-		if (debugControl == null || debugControl.isDisposed()) {
+		if (debugButton == null || debugButton.isDisposed()) {
 			return;
 		}
 
@@ -256,22 +246,22 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 		}
 
 		if (command == null || !command.getLaunch().isDebugEnabled()) {
-			debugControl.setEnabled(false);
-			debugControl.setText(Messages.ApplicationDetailsPart_TEXT_DEBUG);
+			debugButton.setEnabled(false);
+			debugButton.setText(Messages.ApplicationDetailsPart_TEXT_DEBUG);
 			return;
 		}
 
-		debugControl.setEnabled(true);
+		debugButton.setEnabled(true);
 
 		if (!command.getLaunch().isConnectedToDebugger()) {
-			debugControl.setText(Messages.ApplicationDetailsPart_TEXT_DEBUG);
-			debugControl.setData(DebugOperationType.Debug);
+			debugButton.setText(Messages.ApplicationDetailsPart_TEXT_DEBUG);
+			debugButton.setData(DebugOperationType.Debug);
 		}
 		else {
-			debugControl.setText(Messages.ApplicationDetailsPart_TEXT_DEBUG_DISCONNECT);
-			debugControl.setData(DebugOperationType.Terminate);
+			debugButton.setText(Messages.ApplicationDetailsPart_TEXT_DEBUG_DISCONNECT);
+			debugButton.setData(DebugOperationType.Terminate);
 		}
-		debugControl.getParent().layout(true);
+		debugButton.getParent().layout(true);
 
 	}
 
@@ -281,8 +271,7 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 
 	protected void refreshDeploymentButtons(CloudFoundryApplicationModule appModule) {
 
-		if (startButtonComposite == null || restartButtonComposite == null || restartButtonComposite.isDisposed()
-				|| startButtonComposite.isDisposed()) {
+		if (topButtonRow == null || lowerButtonRow == null || lowerButtonRow.isDisposed() || topButtonRow.isDisposed()) {
 			return;
 		}
 		int state = appModule.getState();
@@ -295,19 +284,29 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 
 		// Show/hide action buttons based on server state
 		if (state == IServer.STATE_STOPPED || state == IServer.STATE_UNKNOWN) {
-
-			startAppButton.setEnabled(true);
-
-			restartAppButton.getSelectionButton().setEnabled(false);
-
 			stopAppButton.setEnabled(false);
+
+			startAppButton.setText(Messages.ApplicationDetailsPart_TEXT_START);
+			startAppButton.setImage(ImageResource.getImage(ImageResource.IMG_CLCL_START));
+			startAppButton.setToolTipText(Messages.ApplicationDetailsPart_TEXT_START_TOOLTIP);
+		}
+		// Otherwise assume app is not running
+		else {
+			stopAppButton.setEnabled(true);
+
+			startAppButton.setText(Messages.ApplicationDetailsPart_TEXT_RESTART);
+			startAppButton.setImage(CloudFoundryImages.getImage(CloudFoundryImages.RESTART));
+			startAppButton.setToolTipText(Messages.ApplicationDetailsPart_TEXT_RESTART_TOOLTIP);
+		}
+
+		// Push can be enabled either when app is stopped or started, as the
+		// Push operation automatically stops an app if it is running
+		// before it push
+		if (CloudFoundryProperties.isModuleProjectAccessible.testProperty(new IModule[] { module }, cloudServer)) {
+			pushAppButton.setEnabled(true);
 		}
 		else {
-			startAppButton.setEnabled(false);
-
-			restartAppButton.getSelectionButton().setEnabled(true);
-
-			stopAppButton.setEnabled(true);
+			pushAppButton.setEnabled(false);
 		}
 
 		// handle the update and restart button separately.
@@ -318,16 +317,18 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 				|| state == IServer.STATE_UNKNOWN
 				|| !CloudFoundryProperties.isModuleProjectAccessible
 						.testProperty(new IModule[] { module }, cloudServer)) {
-			updateRestartAppButton.getSelectionButton().setEnabled(false);
-
+			updateRestartAppButton.setEnabled(false);
 		}
 		else {
-			updateRestartAppButton.getSelectionButton().setEnabled(true);
+			updateRestartAppButton.setEnabled(true);
+
 		}
 
-		refreshRestartButtons();
-
 		refreshDebugControls(appModule);
+
+		topButtonRow.getParent().layout(true);
+		lowerButtonRow.getParent().layout(true);
+
 	}
 
 	private void updateServerNameDisplay(CloudFoundryApplicationModule application) {
@@ -366,13 +367,8 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 		resizeTableColumns();
 
 		canUpdate = false;
-		CloudFoundryApplicationModule appModule = null;
-		try {
-			appModule = getUpdatedApplication();
-		}
-		catch (CoreException ce) {
-			logApplicationModuleFailureError(Messages.ApplicationDetailsPart_ERROR_UNABLE_REFRESH_EDITOR_STATE);
-		}
+		CloudFoundryApplicationModule appModule = cloudServer.getExistingCloudModule(module);
+
 		// Refresh the state of the editor regardless of whether there is a
 		// module or not
 		refreshPublishState(appModule);
@@ -398,7 +394,6 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 
 		int state = appModule.getState();
 
-		setCurrentStartDebugApplicationAction();
 		instanceSpinner.setSelection(appModule.getInstanceCount());
 
 		refreshDeploymentButtons(appModule);
@@ -532,7 +527,7 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 		module = (IModule) sel.getFirstElement();
 
 		refreshUI();
-		editorPage.refresh(RefreshArea.DETAIL, true);
+		editorPage.refresh(RefreshArea.DETAIL);
 	}
 
 	private void adaptControl(Control control) {
@@ -817,37 +812,27 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 		GridDataFactory.fillDefaults().grab(true, false).applyTo(client);
 		operationsSection.setClient(client);
 
-		// FIXNS: Uncomment when CF client supports staging updates
-		// createStandaloneCommandArea(client);
-
-		startButtonComposite = toolkit.createComposite(client);
-		GridDataFactory.fillDefaults().span(2, 1).applyTo(startButtonComposite);
+		topButtonRow = toolkit.createComposite(client);
+		GridDataFactory.fillDefaults().span(2, 1).applyTo(topButtonRow);
 
 		RowLayout layout = RowLayoutFactory.fillDefaults().margins(0, 2).wrap(false).create();
 		layout.center = true;
-		startButtonComposite.setLayout(layout);
+		topButtonRow.setLayout(layout);
 
-		startAppButton = toolkit.createButton(startButtonComposite, Messages.ApplicationDetailsPart_TEXT_START,
-				SWT.PUSH);
+		startAppButton = toolkit.createButton(topButtonRow, Messages.ApplicationDetailsPart_TEXT_START, SWT.PUSH);
 		startAppButton.setImage(ImageResource.getImage(ImageResource.IMG_CLCL_START));
-		startAppButton.setEnabled(true);
+		startAppButton.setToolTipText(Messages.ApplicationDetailsPart_TEXT_START_TOOLTIP);
+
 		startAppButton.addSelectionListener(new SelectionAdapter() {
 			public void widgetSelected(SelectionEvent e) {
-				startStopApplication(ApplicationAction.START);
+				restartApplication(ApplicationAction.RESTART);
 			}
 		});
+		// Always enable. App can be restarted both when it is stopped and
+		// started.
+		startAppButton.setEnabled(true);
 
-		createDebugArea(startButtonComposite);
-
-		restartButtonComposite = toolkit.createComposite(client);
-		GridDataFactory.fillDefaults().span(2, 1).applyTo(restartButtonComposite);
-
-		layout = RowLayoutFactory.fillDefaults().margins(0, 2).wrap(false).create();
-		layout.center = true;
-		restartButtonComposite.setLayout(layout);
-
-		stopAppButton = toolkit.createButton(restartButtonComposite, Messages.ApplicationDetailsPart_TEXT_STOP,
-				SWT.PUSH);
+		stopAppButton = toolkit.createButton(topButtonRow, Messages.ApplicationDetailsPart_TEXT_STOP, SWT.PUSH);
 		stopAppButton.setImage(ImageResource.getImage(ImageResource.IMG_CLCL_STOP));
 		stopAppButton.addSelectionListener(new SelectionAdapter() {
 			public void widgetSelected(SelectionEvent e) {
@@ -855,41 +840,36 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 			}
 		});
 
-		restartAppButton = new ApplicationActionMenuControl(restartButtonComposite, ApplicationAction.START,
-				Messages.ApplicationDetailsPart_TEXT_RESTART, CloudFoundryImages.getImage(CloudFoundryImages.RESTART),
-				toolkit) {
-
-			public void setDefaultTooltipMessage() {
-				// Don't do anything as tooltip is controlled by the editor part
-			}
-
-		};
-		restartAppButton.createControl();
-
-		restartAppButton.addMenuListener(new IButtonMenuListener() {
-
-			public void widgetSelected(ApplicationAction actionType) {
-				restartApplication(ApplicationAction.RESTART, actionType);
+		updateRestartAppButton = toolkit.createButton(topButtonRow,
+				Messages.ApplicationDetailsPart_TEXT_UPDATE_RESTART, SWT.PUSH);
+		updateRestartAppButton.setImage(CloudFoundryImages.getImage(CloudFoundryImages.RESTART));
+		updateRestartAppButton.addSelectionListener(new SelectionAdapter() {
+			public void widgetSelected(SelectionEvent e) {
+				restartApplication(ApplicationAction.UPDATE_RESTART);
 			}
 		});
 
-		updateRestartAppButton = new ApplicationActionMenuControl(restartButtonComposite, ApplicationAction.START,
-				Messages.ApplicationDetailsPart_TEXT_UPDATE_RESTART,
-				CloudFoundryImages.getImage(CloudFoundryImages.RESTART), toolkit) {
+		updateRestartAppButton.setToolTipText(Messages.ApplicationDetailsPart_TEXT_UPDATE_RESTART_TOOLTIP);
 
-			public void setDefaultTooltipMessage() {
-				// Don't do anything as tooltip is controlled by the editor part
-			}
+		lowerButtonRow = toolkit.createComposite(client);
+		GridDataFactory.fillDefaults().span(2, 1).applyTo(lowerButtonRow);
 
-		};
-		updateRestartAppButton.createControl();
+		layout = RowLayoutFactory.fillDefaults().margins(0, 2).wrap(false).create();
+		layout.center = true;
+		lowerButtonRow.setLayout(layout);
 
-		updateRestartAppButton.addMenuListener(new IButtonMenuListener() {
-
-			public void widgetSelected(ApplicationAction actionType) {
-				restartApplication(ApplicationAction.UPDATE_RESTART, actionType);
+		pushAppButton = toolkit.createButton(lowerButtonRow, Messages.ApplicationDetailsPart_TEXT_PUSH, SWT.PUSH);
+		pushAppButton.setImage(CloudFoundryImages.getImage(CloudFoundryImages.PUSH));
+		pushAppButton.setEnabled(false);
+		pushAppButton.addSelectionListener(new SelectionAdapter() {
+			public void widgetSelected(SelectionEvent e) {
+				startStopApplication(ApplicationAction.START);
 			}
 		});
+
+		pushAppButton.setToolTipText(Messages.ApplicationDetailsPart_TEXT_PUSH_TOOLTIP);
+
+		createDebugArea(lowerButtonRow);
 
 	}
 
@@ -958,69 +938,32 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 	}
 
 	protected void createDebugArea(Composite parent) {
-		debugControl = toolkit.createButton(parent, Messages.ApplicationDetailsPart_TEXT_DEBUG, SWT.PUSH);
-		debugControl.setImage(CloudFoundryImages.getImage(CloudFoundryImages.DEBUG));
-		debugControl.setEnabled(false);
-		debugControl.setData(DebugOperationType.Debug);
-		debugControl.addSelectionListener(new SelectionAdapter() {
+		debugButton = toolkit.createButton(parent, Messages.ApplicationDetailsPart_TEXT_DEBUG, SWT.PUSH);
+		debugButton.setImage(CloudFoundryImages.getImage(CloudFoundryImages.DEBUG));
+		debugButton.setEnabled(false);
+		debugButton.setData(DebugOperationType.Debug);
+		debugButton.addSelectionListener(new SelectionAdapter() {
 			public void widgetSelected(SelectionEvent e) {
-				if (DebugOperationType.Debug.equals(debugControl.getData())) {
+				if (DebugOperationType.Debug.equals(debugButton.getData())) {
 					debug();
 				}
-				else if (DebugOperationType.Terminate.equals(debugControl.getData())) {
+				else if (DebugOperationType.Terminate.equals(debugButton.getData())) {
 					terminateDebug();
 				}
 			}
 		});
 
-		debugControl.setEnabled(false);
-
-	}
-
-	/**
-	 * This should be the ONLY way to set the selected deploy application
-	 * action.
-	 * @param action
-	 */
-	protected void setCurrentStartDebugApplicationAction() {
-		ApplicationAction currentDeployedAction = getCurrentDeploymentStateApplicationAction();
-		if (restartAppButton != null) {
-			restartAppButton.setSelectedAction(currentDeployedAction);
-		}
-		if (updateRestartAppButton != null) {
-			updateRestartAppButton.setSelectedAction(currentDeployedAction);
-		}
+		debugButton.setEnabled(false);
+		debugButton.setToolTipText(Messages.ApplicationDetailsPart_TEXT_DEBUG_TOOLTIP);
 	}
 
 	protected ApplicationAction getCurrentDeploymentStateApplicationAction() {
 		return ApplicationAction.START;
 	}
 
-	/**
-	 * Restarts an application either in normal run mode or debug mode, based on
-	 * the specified start action. The restart action is the actual restart
-	 * command that was selected by the user, either "restart" or
-	 * "update and restart"
-	 * @param restartAction the actual button action that was selected by a user
-	 */
-	protected void restartApplication(ApplicationAction restartAction, ApplicationAction startAction) {
-		skipButtonRefreshOnRestart = true;
+	protected void restartApplication(ApplicationAction restartAction) {
+		skipButtonRefreshOnRestart = restartAction == ApplicationAction.UPDATE_RESTART;
 		startStopApplication(restartAction);
-	}
-
-	protected void refreshRestartButtons() {
-		setRestartButtonDisplayProperties(restartAppButton.getSelectionButton(), ApplicationAction.RESTART);
-		setRestartButtonDisplayProperties(updateRestartAppButton.getSelectionButton(), ApplicationAction.UPDATE_RESTART);
-	}
-
-	protected void setRestartButtonDisplayProperties(Button restartButton, ApplicationAction restartButtonAction) {
-
-		// Set the UI for the restart buttons, including tooltip text, based on
-		// the currently deployed application action.
-		restartButton.setImage(CloudFoundryImages.getImage(CloudFoundryImages.RESTART));
-		restartButton
-				.setToolTipText(restartButtonAction == ApplicationAction.UPDATE_RESTART ? Messages.ApplicationDetailsPart_TEXT_UPDATE_RESTART_APP
-						: Messages.ApplicationDetailsPart_TEXT_RESTART_APP);
 	}
 
 	private void createInstancesSection(Composite parent) {
@@ -1250,24 +1193,6 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 		return appModule;
 	}
 
-	/**
-	 * @return an updated cloud application module. If it did not previously
-	 * exist, it will attempt to create it. Never null as requesting an app
-	 * module during the lifecycle of the editor should always result in
-	 * non-null app.
-	 * @throws CoreException if application does not exist
-	 */
-	protected CloudFoundryApplicationModule getUpdatedApplication() throws CoreException {
-		CloudFoundryApplicationModule appModule = cloudServer.getCloudModule(module);
-
-		if (appModule == null) {
-			String errorMessage = module != null ? NLS.bind(Messages.ApplicationDetailsPart_ERROR_NO_CF_APP_MODULE_FOR,
-					module.getId()) : Messages.ApplicationDetailsPart_ERROR_NO_CF_APP_MODULE;
-			throw CloudErrorUtil.toCoreException(errorMessage);
-		}
-		return appModule;
-	}
-
 	protected void logError(String message) {
 		logError(message, null);
 	}
@@ -1276,7 +1201,6 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 		if (editorPage != null && !editorPage.isDisposed()) {
 			if (message != null) {
 				editorPage.setErrorMessage(message);
-
 			}
 			else {
 				editorPage.setErrorMessage(null);
@@ -1333,63 +1257,4 @@ public class ApplicationDetailsPart extends AbstractFormPart implements IDetails
 		return result.toString();
 	}
 
-	protected class ApplicationChangeListener implements CloudServerListener {
-
-		@Override
-		public void serverChanged(CloudServerEvent event) {
-			if (event instanceof ApplicationChangeEvent) {
-
-				final ApplicationChangeEvent appEvent = (ApplicationChangeEvent) event;
-
-				if (appEvent.getType() == CloudServerEvent.EVENT_APP_DEBUG) {
-
-					// Both are required in order to check that the current
-					// visible application in the editor matches
-					// the event source
-					if (appEvent.getServer() == null || appEvent.getApplication() == null) {
-						return;
-					}
-
-					CloudFoundryApplicationModule appModule = null;
-
-					try {
-						appModule = getExistingApplication();
-					}
-					catch (CoreException ce) {
-						logApplicationModuleFailureError(Messages.ApplicationDetailsPart_ERROR_REFRESH_DEBUG_BUTTON);
-						return;
-					}
-
-					if (appModule.getDeployedApplicationName().equals(
-							appEvent.getApplication().getDeployedApplicationName())
-							&& cloudServer.getServer().getId().equals(appEvent.getServer().getServer().getId())) {
-						final CloudFoundryApplicationModule finAppModule = appModule;
-						UIJob job = new UIJob(Messages.ApplicationDetailsPart_JOB_DEBUG) {
-
-							public IStatus runInUIThread(IProgressMonitor arg0) {
-
-								final IStatus eventStatus = appEvent.getStatus();
-
-								if (!eventStatus.isOK() && startButtonComposite != null
-										&& !startButtonComposite.isDisposed()) {
-									logError(eventStatus.getMessage(), startButtonComposite.getShell());
-								}
-
-								refreshDebugControls(finAppModule);
-
-								// Return OK. If there is an error it gets
-								// handled separately above.
-								return Status.OK_STATUS;
-							}
-
-						};
-						job.setSystem(true);
-						job.setRule(ResourcesPlugin.getWorkspace().getRuleFactory().buildRule());
-						job.setPriority(Job.INTERACTIVE);
-						job.schedule();
-					}
-				}
-			}
-		}
-	}
 }
