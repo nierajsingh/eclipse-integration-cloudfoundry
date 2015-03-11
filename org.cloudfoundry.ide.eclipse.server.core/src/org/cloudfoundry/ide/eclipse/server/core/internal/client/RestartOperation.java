@@ -157,9 +157,6 @@ public class RestartOperation extends ApplicationOperation {
 
 						CloudFoundryPlugin.trace("Application " + deploymentName + " started"); //$NON-NLS-1$ //$NON-NLS-2$
 
-						CloudFoundryPlugin.getCallback().applicationStarted(
-								RestartOperation.this.getBehaviour().getCloudFoundryServer(), cloudModule);
-
 						if (curTracker != null) {
 							// Wait for application to be ready or getting
 							// out of the starting state.
@@ -181,6 +178,9 @@ public class RestartOperation extends ApplicationOperation {
 						}
 
 						server.setModuleState(getModules(), IServer.STATE_STARTED);
+
+						CloudFoundryPlugin.getCallback().applicationStarted(
+								RestartOperation.this.getBehaviour().getCloudFoundryServer(), cloudModule);
 
 						return null;
 					}
