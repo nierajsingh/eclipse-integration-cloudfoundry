@@ -56,6 +56,15 @@ public class CloudRebelAppHandler implements CloudServerListener {
 		}
 	}
 
+	/**
+	 * 
+	 * @param module application module, whose JRebel-enabled project is to be
+	 * resolved.
+	 * @param server where application is deployed
+	 * @return IProject if an accessible, JRebel-enabled project exists for the
+	 * given module, and if the application is deployed in a server target that
+	 * supports JRebel. Null otherwise.
+	 */
 	protected IProject getRebelProject(IModule module, CloudFoundryServer server) {
 		if (module == null) {
 			return null;
@@ -148,11 +157,10 @@ public class CloudRebelAppHandler implements CloudServerListener {
 								appUrls = appUrlEvent.getChangedUrls();
 								oldAppUrls = appUrlEvent.getOldUrls();
 							}
-							else {
-								if (appModule != null && appModule.getDeploymentInfo() != null) {
-									appUrls = appModule.getDeploymentInfo().getUris();
-								}
+							else if (appModule != null && appModule.getDeploymentInfo() != null) {
+								appUrls = appModule.getDeploymentInfo().getUris();
 							}
+
 							if (existingRebelUrls == null) {
 								existingRebelUrls = new URL[0];
 							}
@@ -212,7 +220,6 @@ public class CloudRebelAppHandler implements CloudServerListener {
 			catch (ClassNotFoundException e) {
 				CloudFoundryPlugin.logError(e);
 			}
-			// Log all other errors
 			catch (SecurityException e) {
 				CloudFoundryPlugin.logError(e);
 			}
